@@ -274,12 +274,33 @@ fn gen_end_tx_steps(state: &mut CircuitInputStateRef) -> Result<ExecStep, Error>
 
     let effective_tip = state.tx.tx.gas_price - state.block.base_fee;
     let (found, coinbase_account) = state.sdb.get_account(&state.block.coinbase);
+    let coinbase_account = coinbase_account.clone();
     if !found {
         return Err(Error::AccountNotFound(state.block.coinbase));
     }
+    let coinbase_reward = effective_tip * (state.tx.gas() - exec_step.gas_left);
+    state.account_read(
+        &mut exec_step,
+        state.block.coinbase,
+        AccountField::CodeHash,
+        if coinbase_account.is_empty() {
+            Word::zero()
+        } else {
+            coinbase_account.code_hash.to_word()
+        },
+    );
+    if coinbase_account.is_empty() && !coinbase_reward.is_zero() {
+        state.account_write(
+            &mut exec_step,
+            state.block.coinbase,
+            AccountField::CodeHash,
+            CodeDB::empty_code_hash().to_word(),
+            Word::zero(),
+        )?;
+    }
+
     let coinbase_balance_prev = coinbase_account.balance;
-    let coinbase_balance =
-        coinbase_balance_prev + effective_tip * (state.tx.gas() - exec_step.gas_left);
+    let coinbase_balance = coinbase_balance_prev + coinbase_reward;
     state.account_write(
         &mut exec_step,
         state.block.coinbase,
