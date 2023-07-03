@@ -243,10 +243,8 @@ impl<F: Field> ExecutionGadget<F> for EndTxGadget<F> {
         let (refund, _) = block.get_rws(step, 2).tx_refund_value_pair();
         let (coinbase_codehash, _) = block.get_rws(step, 4).account_value_pair();
         let [(caller_balance, caller_balance_prev), (coinbase_balance, coinbase_balance_prev)] =
-            [3, 5 + usize::from(coinbase_codehash.is_zero())].map(|index| {
-                dbg!(index);
-                block.get_rws(step, index).account_value_pair()
-            });
+            [3, 5 + usize::from(coinbase_codehash.is_zero())]
+                .map(|index| block.get_rws(step, index).account_value_pair());
 
         self.tx_id
             .assign(region, offset, Value::known(F::from(tx.id as u64)))?;
